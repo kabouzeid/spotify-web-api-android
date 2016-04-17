@@ -958,7 +958,7 @@ public class SpotifyServiceTest {
         } catch (RetrofitError error) {
             errorReached = true;
 
-            SpotifyError spotifyError = SpotifyError.fromRetrofitError(error);
+            SpotifyError spotifyError = SpotifyError.fromResponse(error);
             assertEquals(fixture.error.status, spotifyError.getErrorDetails().status);
             assertEquals(fixture.error.message, spotifyError.getErrorDetails().message);
             assertEquals(403, spotifyError.getRetrofitError().getResponse().getStatus());

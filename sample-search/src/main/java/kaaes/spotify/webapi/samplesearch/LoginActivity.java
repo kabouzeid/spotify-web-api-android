@@ -2,6 +2,7 @@ package kaaes.spotify.webapi.samplesearch;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -28,12 +29,14 @@ public class LoginActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        String token = CredentialsHandler.getToken(this);
-        if (token == null) {
-            setContentView(R.layout.activity_login);
-        } else {
-            startMainActivity(token);
-        }
+//        String token = CredentialsHandler.getToken(this);
+//        if (token == null) {
+//            setContentView(R.layout.activity_login);
+//        } else {
+//            startMainActivity(token);
+//        }
+
+        startMainActivity(null);
     }
 
     public void onLoginButtonClicked(View view) {

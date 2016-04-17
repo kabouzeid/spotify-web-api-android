@@ -1,17 +1,23 @@
 package kaaes.spotify.webapi.samplesearch;
 
+import android.util.Log;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import kaaes.spotify.webapi.android.SpotifyCallback;
-import kaaes.spotify.webapi.android.SpotifyError;
 import kaaes.spotify.webapi.android.SpotifyService;
+import kaaes.spotify.webapi.android.models.Artist;
+import kaaes.spotify.webapi.android.models.ArtistsPager;
+import kaaes.spotify.webapi.android.models.Pager;
 import kaaes.spotify.webapi.android.models.Track;
 import kaaes.spotify.webapi.android.models.TracksPager;
-import retrofit.client.Response;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class SearchPager {
+    public static final String TAG = SearchPager.class.getSimpleName();
 
     private final SpotifyService mSpotifyApi;
     private int mCurrentOffset;
@@ -20,6 +26,7 @@ public class SearchPager {
 
     public interface CompleteListener {
         void onComplete(List<Track> items);
+
         void onError(Throwable error);
     }
 
@@ -45,15 +52,19 @@ public class SearchPager {
         options.put(SpotifyService.OFFSET, offset);
         options.put(SpotifyService.LIMIT, limit);
 
-        mSpotifyApi.searchTracks(query, options, new SpotifyCallback<TracksPager>() {
+        mSpotifyApi.searchTracks(query, options).enqueue(new Callback<TracksPager>() {
             @Override
-            public void success(TracksPager tracksPager, Response response) {
-                listener.onComplete(tracksPager.tracks.items);
+            public void onResponse(Call<TracksPager> call, Response<TracksPager> response) {
+                if (response.isSuccessful()) {
+                    listener.onComplete(response.body().tracks.items);
+                } else {
+                    Log.d(TAG, "onResponse: code: " + response.code());
+                }
             }
 
             @Override
-            public void failure(SpotifyError error) {
-                listener.onError(error);
+            public void onFailure(Call<TracksPager> call, Throwable t) {
+                listener.onError(t);
             }
         });
     }

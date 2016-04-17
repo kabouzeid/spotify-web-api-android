@@ -1,44 +1,52 @@
 package kaaes.spotify.webapi.android;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import android.util.Log;
 
-import retrofit.RequestInterceptor;
-import retrofit.RestAdapter;
-import retrofit.android.MainThreadExecutor;
+import java.io.IOException;
+
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * Creates and configures a REST adapter for Spotify Web API.
- *
+ * <p/>
  * Basic usage:
  * SpotifyApi wrapper = new SpotifyApi();
- *
+ * <p/>
  * Setting access token is optional for certain endpoints
  * so if you know you'll only use the ones that don't require authorisation
  * you can skip this step:
  * wrapper.setAccessToken(authenticationResponse.getAccessToken());
- *
+ * <p/>
  * SpotifyService spotify = wrapper.getService();
- *
+ * <p/>
  * Album album = spotify.getAlbum("2dIGnmEIy1WZIcZCFSj6i8");
  */
 public class SpotifyApi {
+    public static final String TAG = SpotifyApi.class.getSimpleName();
 
     /**
      * Main Spotify Web API endpoint
      */
-    public static final String SPOTIFY_WEB_API_ENDPOINT = "https://api.spotify.com/v1";
+    public static final String SPOTIFY_WEB_API_ENDPOINT = "https://api.spotify.com/";
 
     /**
      * The request interceptor that will add the header with OAuth
      * token to every request made with the wrapper.
      */
-    private class WebApiAuthenticator implements RequestInterceptor {
+    private class WebApiAuthenticator implements Interceptor {
         @Override
-        public void intercept(RequestFacade request) {
+        public Response intercept(Chain chain) throws IOException {
+            Request request = chain.request();
+            Log.d(TAG, "intercept: " + request.url());
             if (mAccessToken != null) {
-                request.addHeader("Authorization", "Bearer " + mAccessToken);
+                request = request.newBuilder().addHeader("Authorization", "Bearer " + mAccessToken).build();
             }
+            return chain.proceed(request);
         }
     }
 
@@ -47,36 +55,46 @@ public class SpotifyApi {
     private String mAccessToken;
 
     /**
-     * Create instance of SpotifyApi with given executors.
+     * New instance of SpotifyApi.
      *
-     * @param httpExecutor executor for http request. Cannot be null.
-     * @param callbackExecutor executor for callbacks. If null is passed than the same
-     *                         thread that created the instance is used.
+     * @param retrofit The {@link Retrofit} instance to use when creating the {@link SpotifyService}
      */
-    public SpotifyApi(Executor httpExecutor, Executor callbackExecutor) {
-        mSpotifyService = init(httpExecutor, callbackExecutor);
+    public SpotifyApi(Retrofit retrofit) {
+        mSpotifyService = createService(retrofit);
     }
 
-    private SpotifyService init(Executor httpExecutor, Executor callbackExecutor) {
-
-        final RestAdapter restAdapter = new RestAdapter.Builder()
-                .setLogLevel(RestAdapter.LogLevel.BASIC)
-                .setExecutors(httpExecutor, callbackExecutor)
-                .setEndpoint(SPOTIFY_WEB_API_ENDPOINT)
-                .setRequestInterceptor(new WebApiAuthenticator())
-                .build();
-
-         return restAdapter.create(SpotifyService.class);
+    private SpotifyService createService(Retrofit retrofit) {
+        return retrofit.create(SpotifyService.class);
     }
 
     /**
-     *  New instance of SpotifyApi,
-     *  with single thread executor both for http and callbacks.
+     * Creates a basic {@link retrofit2.Retrofit.Builder} which uses
+     * {@link #SPOTIFY_WEB_API_ENDPOINT} as the base URL and a {@link GsonConverterFactory}
+     *
+     * @return The builder
+     */
+    public Retrofit.Builder createBaseRetrofitBuilder() {
+        return new Retrofit.Builder().addConverterFactory(GsonConverterFactory.create()).baseUrl(SPOTIFY_WEB_API_ENDPOINT);
+    }
+
+    /**
+     * Creates a basic {@link okhttp3.OkHttpClient.Builder} which automatically applies the access
+     * token to all calls
+     *
+     * @return The builder
+     */
+    public OkHttpClient.Builder createBaseOkHttpClientBuilder() {
+        return new OkHttpClient.Builder().addNetworkInterceptor(new WebApiAuthenticator());
+    }
+
+    /**
+     * New instance of SpotifyApi.
      */
     public SpotifyApi() {
-        Executor httpExecutor = Executors.newSingleThreadExecutor();
-        MainThreadExecutor callbackExecutor = new MainThreadExecutor();
-        mSpotifyService = init(httpExecutor, callbackExecutor);
+        final Retrofit retrofit = createBaseRetrofitBuilder()
+                .callFactory(createBaseOkHttpClientBuilder().build())
+                .build();
+        mSpotifyService = createService(retrofit);
     }
 
     /**
@@ -93,7 +111,7 @@ public class SpotifyApi {
     }
 
     /**
-     * @return The SpotifyApi instance
+     * @return The SpotifyService instance
      */
     public SpotifyService getService() {
         return mSpotifyService;
